@@ -49,34 +49,38 @@ export type FakeScriptStep =
 	  };
 
 export type FakeScript = readonly FakeScriptStep[];
+
 export function fakeModel(scripts: readonly FakeScript[]): FakeLanguageModel {
 	let currIndex = 0;
 	const requests: ModelRequest[] = [];
+
 	return {
 		provider: "fake",
 		modelId: "fake",
-		stream(request: ModelRequest, context: { signal: AbortSignal }) {
-			const script = scripts[currIndex++];
-			if (!script) {
-				const error = new Error("Fake script exhausted");
-				Object.assign(error, {
-					code: "FAKE_SCRIPT_EXHAUSTED",
+		stream(request: ModelRequest, _context: { signal: AbortSignal }) {
+			const script = scripts[currIndex];
+
+			if (script === undefined) {
+				throw Object.assign(new Error("Fake script exhausted"), {
+					code: "FAKE_SCRIPT_EXHAUSTED" as const,
 				});
-				throw error;
 			}
+
+			currIndex += 1;
 			requests.push(request);
+
 			return (async function* () {
 				for (const step of script) {
 					if (step.kind === "event") {
 						yield step.event;
-					}
-
-					if (step.kind === "wait") {
+					} else {
 						await step.gate;
 					}
 				}
 			})();
 		},
-		requests: requests,
+		get requests() {
+			return requests.slice();
+		},
 	};
 }

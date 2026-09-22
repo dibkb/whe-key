@@ -5,7 +5,7 @@ import {
 	fakeModel,
 	type ModelEvent,
 	type ModelRequest,
-} from "./model.ts";
+} from "./index.ts";
 
 async function collect(
 	stream: AsyncIterable<ModelEvent>,
@@ -125,9 +125,7 @@ test("reserves one script per stream call and captures requests", async () => {
 		model.stream(requestC, {
 			signal: new AbortController().signal,
 		});
-		console.log(model);
 	} catch (error) {
-		console.log("error", error);
 		exhaustionError = error;
 	}
 
