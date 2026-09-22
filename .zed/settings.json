@@ -1,51 +1,35 @@
 {
-  "auto_install_extensions": {
-    "biome": true
-  },
-  "languages": {
-    "TypeScript": {
-      "language_servers": ["vtsls", "biome"],
-      "format_on_save": "on",
-      "formatter": [
-        { "language_server": { "name": "biome" } },
-        { "code_action": "source.fixAll.biome" },
-        { "code_action": "source.organizeImports.biome" }
-      ]
-    },
-    "TSX": {
-      "language_servers": ["vtsls", "biome"],
-      "format_on_save": "on",
-      "formatter": [
-        { "language_server": { "name": "biome" } },
-        { "code_action": "source.fixAll.biome" },
-        { "code_action": "source.organizeImports.biome" }
-      ]
-    },
-    "JavaScript": {
-      "language_servers": ["vtsls", "biome"],
-      "format_on_save": "on",
-      "formatter": [
-        { "language_server": { "name": "biome" } },
-        { "code_action": "source.fixAll.biome" },
-        { "code_action": "source.organizeImports.biome" }
-      ]
-    },
-    "JSX": {
-      "language_servers": ["vtsls", "biome"],
-      "format_on_save": "on",
-      "formatter": [
-        { "language_server": { "name": "biome" } },
-        { "code_action": "source.fixAll.biome" },
-        { "code_action": "source.organizeImports.biome" }
-      ]
-    },
-    "JSON": {
-      "format_on_save": "on",
-      "formatter": { "language_server": { "name": "biome" } }
-    },
-    "JSONC": {
-      "format_on_save": "on",
-      "formatter": { "language_server": { "name": "biome" } }
-    }
-  }
+	"auto_install_extensions": {
+		"biome": true
+	},
+	"languages": {
+		"TypeScript": {
+			"language_servers": ["vtsls", "biome"],
+			"format_on_save": "on",
+			"formatter": { "language_server": { "name": "biome" } }
+		},
+		"TSX": {
+			"language_servers": ["vtsls", "biome"],
+			"format_on_save": "on",
+			"formatter": { "language_server": { "name": "biome" } }
+		},
+		"JavaScript": {
+			"language_servers": ["vtsls", "biome"],
+			"format_on_save": "on",
+			"formatter": { "language_server": { "name": "biome" } }
+		},
+		"JSX": {
+			"language_servers": ["vtsls", "biome"],
+			"format_on_save": "on",
+			"formatter": { "language_server": { "name": "biome" } }
+		},
+		"JSON": {
+			"format_on_save": "on",
+			"formatter": { "language_server": { "name": "biome" } }
+		},
+		"JSONC": {
+			"format_on_save": "on",
+			"formatter": { "language_server": { "name": "biome" } }
+		}
+	}
 }
