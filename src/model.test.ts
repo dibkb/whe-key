@@ -133,3 +133,117 @@ test("reserves one script per stream call and captures requests", async () => {
 		code: "FAKE_SCRIPT_EXHAUSTED",
 	});
 });
+
+test("stops after a stop finish event", async () => {
+	const model = fakeModel([
+		[
+			{
+				kind: "event",
+				event: {
+					type: "text-delta",
+					delta: "hello",
+				},
+			},
+			{
+				kind: "event",
+				event: {
+					type: "finish",
+					reason: "stop",
+				},
+			},
+			{
+				kind: "event",
+				event: {
+					type: "text-delta",
+					delta: "ignored",
+				},
+			},
+		],
+	]);
+
+	const events = await collect(
+		model.stream(
+			{
+				messages: [{ role: "user", content: "hello" }],
+				tools: [],
+			},
+			{ signal: new AbortController().signal },
+		),
+	);
+
+	expect(events).toEqual([
+		{ type: "text-delta", delta: "hello" },
+		{ type: "finish", reason: "stop" },
+	]);
+});
+
+test("stops after a provider error event", async () => {
+	const error = new Error("provider down");
+	const model = fakeModel([
+		[
+			{
+				kind: "event",
+				event: { type: "error", error },
+			},
+			{
+				kind: "event",
+				event: { type: "text-delta", delta: "ignored" },
+			},
+		],
+	]);
+
+	const events = await collect(
+		model.stream(
+			{
+				messages: [{ role: "user", content: "hello" }],
+				tools: [],
+			},
+			{ signal: new AbortController().signal },
+		),
+	);
+
+	expect(events).toEqual([{ type: "error", error }]);
+});
+
+test("tool-call finish is terminal", async () => {
+	const model = fakeModel([
+		[
+			{
+				kind: "event",
+				event: {
+					type: "tool-call",
+					id: "call-1",
+					name: "weather",
+					arguments: '{"city":"Guwahati"}',
+				},
+			},
+			{
+				kind: "event",
+				event: {
+					type: "finish",
+					reason: "tool-calls",
+				},
+			},
+			{
+				kind: "event",
+				event: { type: "text-delta", delta: "ignored" },
+			},
+		],
+	]);
+
+	const events = await collect(
+		model.stream(
+			{
+				messages: [{ role: "user", content: "weather?" }],
+				tools: [],
+			},
+			{ signal: new AbortController().signal },
+		),
+	);
+
+	expect(events).toHaveLength(2);
+	expect(events[1]).toEqual({
+		type: "finish",
+		reason: "tool-calls",
+	});
+});

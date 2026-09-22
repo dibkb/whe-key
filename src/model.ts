@@ -65,14 +65,17 @@ export function fakeModel(scripts: readonly FakeScript[]): FakeLanguageModel {
 					code: "FAKE_SCRIPT_EXHAUSTED" as const,
 				});
 			}
-
 			currIndex += 1;
 			requests.push(request);
 
 			return (async function* () {
 				for (const step of script) {
 					if (step.kind === "event") {
-						yield step.event;
+						const event = step.event;
+						yield event;
+						if (event.type === "finish" || event.type === "error") {
+							return;
+						}
 					} else {
 						await step.gate;
 					}
