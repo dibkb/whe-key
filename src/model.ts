@@ -49,7 +49,31 @@ export type FakeScriptStep =
 	  };
 
 export type FakeScript = readonly FakeScriptStep[];
+function abortReason(signal: AbortSignal): unknown {
+	return (
+		signal.reason ??
+		new DOMException("The operation was aborted.", "AbortError")
+	);
+}
+function waitForGateOrAbort(
+	gate: Promise<void>,
+	signal: AbortSignal,
+): Promise<void> {
+	if (signal.aborted) {
+		return Promise.reject(abortReason(signal));
+	}
 
+	let onAbort!: () => void;
+
+	const aborted = new Promise<never>((_, reject) => {
+		onAbort = () => reject(abortReason(signal));
+		signal.addEventListener("abort", onAbort, { once: true });
+	});
+
+	return Promise.race([gate, aborted]).finally(() => {
+		signal.removeEventListener("abort", onAbort);
+	});
+}
 export function fakeModel(scripts: readonly FakeScript[]): FakeLanguageModel {
 	let currIndex = 0;
 	const requests: ModelRequest[] = [];
@@ -57,9 +81,8 @@ export function fakeModel(scripts: readonly FakeScript[]): FakeLanguageModel {
 	return {
 		provider: "fake",
 		modelId: "fake",
-		stream(request: ModelRequest, _context: { signal: AbortSignal }) {
+		stream(request: ModelRequest, context: { signal: AbortSignal }) {
 			const script = scripts[currIndex];
-
 			if (script === undefined) {
 				throw Object.assign(new Error("Fake script exhausted"), {
 					code: "FAKE_SCRIPT_EXHAUSTED" as const,
@@ -70,14 +93,16 @@ export function fakeModel(scripts: readonly FakeScript[]): FakeLanguageModel {
 
 			return (async function* () {
 				for (const step of script) {
+					context.signal.throwIfAborted();
 					if (step.kind === "event") {
 						const event = step.event;
 						yield event;
 						if (event.type === "finish" || event.type === "error") {
 							return;
 						}
-					} else {
-						await step.gate;
+					}
+					if (step.kind === "wait") {
+						await waitForGateOrAbort(step.gate, context.signal);
 					}
 				}
 			})();

@@ -19,6 +19,12 @@ async function collect(
 	return events;
 }
 
+async function flushMicrotasks(): Promise<void> {
+	for (let index = 0; index < 8; index += 1) {
+		await Promise.resolve();
+	}
+}
+
 const scriptA: FakeScript = [
 	{
 		kind: "event",
@@ -245,5 +251,133 @@ test("tool-call finish is terminal", async () => {
 	expect(events[1]).toEqual({
 		type: "finish",
 		reason: "tool-calls",
+	});
+});
+
+test("rejects before emitting when already aborted", async () => {
+	const controller = new AbortController();
+	controller.abort();
+	const model = fakeModel([
+		[
+			{
+				kind: "event",
+				event: { type: "text-delta", delta: "must not emit" },
+			},
+		],
+	]);
+
+	const stream = model.stream(
+		{
+			messages: [{ role: "user", content: "hello" }],
+			tools: [],
+		},
+		{ signal: controller.signal },
+	);
+
+	await expect(collect(stream)).rejects.toMatchObject({
+		name: "AbortError",
+	});
+});
+
+test("rejects while waiting on a deferred script step", async () => {
+	let release!: () => void;
+	const gate = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	const controller = new AbortController();
+	const model = fakeModel([
+		[
+			{ kind: "wait", gate },
+			{
+				kind: "event",
+				event: { type: "text-delta", delta: "must not emit" },
+			},
+		],
+	]);
+
+	const iterator = model
+		.stream(
+			{
+				messages: [{ role: "user", content: "hello" }],
+				tools: [],
+			},
+			{ signal: controller.signal },
+		)
+		[Symbol.asyncIterator]();
+
+	const pending = iterator.next();
+	let settled = false;
+	pending.then(
+		() => {
+			settled = true;
+		},
+		() => {
+			settled = true;
+		},
+	);
+	controller.abort();
+	await flushMicrotasks();
+	const abortedBeforeGateRelease = settled;
+	release();
+	expect(abortedBeforeGateRelease).toBe(true);
+
+	await expect(pending).rejects.toMatchObject({
+		name: "AbortError",
+	});
+});
+
+test("rejects before emitting the next event after abort", async () => {
+	let release!: () => void;
+	const gate = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	const controller = new AbortController();
+	const model = fakeModel([
+		[
+			{
+				kind: "event",
+				event: { type: "text-delta", delta: "first" },
+			},
+			{ kind: "wait", gate },
+			{
+				kind: "event",
+				event: { type: "text-delta", delta: "must not emit" },
+			},
+		],
+	]);
+
+	const iterator = model
+		.stream(
+			{
+				messages: [{ role: "user", content: "hello" }],
+				tools: [],
+			},
+			{ signal: controller.signal },
+		)
+		[Symbol.asyncIterator]();
+
+	await expect(iterator.next()).resolves.toEqual({
+		done: false,
+		value: { type: "text-delta", delta: "first" },
+	});
+
+	const pending = iterator.next();
+	let settled = false;
+	pending.then(
+		() => {
+			settled = true;
+		},
+		() => {
+			settled = true;
+		},
+	);
+	controller.abort();
+	await flushMicrotasks();
+	const abortedBeforeGateRelease = settled;
+	release();
+	expect(abortedBeforeGateRelease).toBe(true);
+
+	await expect(pending).rejects.toMatchObject({
+		name: "AbortError",
 	});
 });

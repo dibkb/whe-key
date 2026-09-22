@@ -5,6 +5,14 @@ export {
 } from "./agent.ts";
 
 export {
+	createEventLedger,
+	type EventLedger,
+	type RunEvent,
+	type RunTrace,
+	type UnsequencedRunEvent,
+} from "./ledger.ts";
+
+export {
 	type FakeLanguageModel,
 	type FakeScript,
 	type FakeScriptStep,
